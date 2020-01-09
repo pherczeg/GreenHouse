@@ -8,6 +8,22 @@ import sqlite3
 import os.path
 
 
+PLANTS = [
+        {
+            "NAME":                 "Flower1",
+            "MOISTURE_CHANNELS":    1,          
+            "MOISTURE_THRESHOLD":   450,        
+            "WATER_PUMP_GPIO":      23,         
+            "WATERING_TIME":        5,          
+        },
+        {
+            "NAME":                 "Flower2",
+            "MOISTURE_CHANNELS":    2,
+            "MOISTURE_THRESHOLD":   430,
+            "WATER_PUMP_GPIO":      24,
+            "WATERING_TIME":        4,
+        },
+    ]
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 db_path = os.path.join(BASE_DIR, "sensordata.db")
 
@@ -43,16 +59,15 @@ def writeDHTDataToDB(temperature, humidity, device):
         print("Record inserted successfully into dhtreadings table ", cursor.rowcount)
         cursor.close()
 
-while True:
-    values = [0]*8
-    for i in range(8):        
-        values[i] = mcp.read_adc(i)
-        writeMoistureDataToDB(values[i],i)
-    print('| {0:>4} | {1:>4} | {2:>4} | {3:>4} | {4:>4} | {5:>4} | {6:>4} | {7:>4} |'.format(*values))
-    
-    GPIO.setup(24, GPIO.OUT, initial=GPIO.LOW)
-    time.sleep(1)
-    GPIO.output(24, GPIO.HIGH)
+def watering():
+    for plant in PLANTS:        
+        channel = plant['MOISTURE_CHANNELS']
+        readvalue = mcp.read_adc(channel)
+        writeMoistureDataToDB(readvalue,channel)
+        if(readvalue>=plant['MOISTURE_THRESHOLD']):
+            GPIO.setup(plant['WATER_PUMP_GPIO'], GPIO.OUT, initial=GPIO.LOW)
+            time.sleep(plant['WATERING_TIME'])
+            GPIO.output(plant['WATER_PUMP_GPIO'], GPIO.HIGH)
 
     humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
     
@@ -64,4 +79,8 @@ while True:
     
 
     time.sleep(0.5)
-    
+
+while True:
+    GPIO.setwarnings(False)
+    watering()
+
